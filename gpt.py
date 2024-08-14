@@ -153,12 +153,13 @@ class GPTAnswerer:
         )
 
     def summarize_job_description(self, text: str) -> str:
-        strings.summarize_prompt_template = self._preprocess_template_string(
-            strings.summarize_prompt_template
-        )
-        prompt = ChatPromptTemplate.from_template(strings.summarize_prompt_template)
-        chain = prompt | self.llm_cheap | StrOutputParser()
-        output = chain.invoke({"text": text})
+        # strings.summarize_prompt_template = self._preprocess_template_string(
+        #     strings.summarize_prompt_template
+        # )
+        # prompt = ChatPromptTemplate.from_template(strings.summarize_prompt_template)
+        # chain = prompt | self.llm_cheap | StrOutputParser()
+        # output = chain.invoke({"text": text})
+        output = text[:100]
         return output
     
 

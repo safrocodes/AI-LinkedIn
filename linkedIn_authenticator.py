@@ -32,7 +32,7 @@ class LinkedInAuthenticator:
             self.submit_login_form()
         except NoSuchElementException:
             print("Could not log in to LinkedIn. Please check your credentials.")
-        time.sleep(35) #TODO fix better
+        time.sleep(3) #TODO fix better
         self.handle_security_check()
 
     def enter_credentials(self):
@@ -58,11 +58,11 @@ class LinkedInAuthenticator:
     def handle_security_check(self):
         """Handle LinkedIn security checks if triggered."""
         try:
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(self.driver, 4).until(
                 EC.url_contains('https://www.linkedin.com/checkpoint/challengesV2/')
             )
             print("Security checkpoint detected. Please complete the challenge.")
-            WebDriverWait(self.driver, 300).until(
+            WebDriverWait(self.driver, 4).until(
                 EC.url_contains('https://www.linkedin.com/feed/')
             )
             print("Security check completed")
@@ -73,7 +73,7 @@ class LinkedInAuthenticator:
         """Check if the user is already logged in to LinkedIn."""
         self.driver.get('https://www.linkedin.com/feed')
         try:
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(self.driver, 2).until(
                 EC.presence_of_element_located((By.CLASS_NAME, 'share-box-feed-entry__trigger'))
             )
             buttons = self.driver.find_elements(By.CLASS_NAME, 'share-box-feed-entry__trigger')
@@ -84,7 +84,7 @@ class LinkedInAuthenticator:
             pass
         return False
 
-    def wait_for_page_load(self, timeout=10):
+    def wait_for_page_load(self, timeout=2):
         """Wait for the page to fully load."""
         try:
             WebDriverWait(self.driver, timeout).until(

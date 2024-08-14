@@ -7,6 +7,7 @@ import traceback
 from datetime import date
 from typing import List, Optional, Any, Tuple
 import uuid
+from httpcore import TimeoutException
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from selenium.common.exceptions import NoSuchElementException
@@ -39,7 +40,7 @@ class LinkedInEasyApplier:
 
     def job_apply(self, job: Any):
         self.driver.get(job.link)
-        time.sleep(random.uniform(3, 5))
+        # time.sleep(random.uniform(1.3, 2.5))
         try:
             easy_apply_button = self._find_easy_apply_button()
             job_description = self._get_job_description()
@@ -54,14 +55,14 @@ class LinkedInEasyApplier:
 
 
     def _find_easy_apply_button(self) -> WebElement:
-        buttons = WebDriverWait(self.driver, 10).until(
+        buttons = WebDriverWait(self.driver, 5).until(
             EC.presence_of_all_elements_located(
                 (By.XPATH, '//button[contains(@class, "jobs-apply-button") and contains(., "Easy Apply")]')
             )
         )
         for index, button in enumerate(buttons):
             try:
-                return WebDriverWait(self.driver, 10).until(
+                return WebDriverWait(self.driver, 5).until(
                     EC.element_to_be_clickable(
                         (By.XPATH, f'(//button[contains(@class, "jobs-apply-button") and contains(., "Easy Apply")])[{index + 1}]')
                     )
@@ -74,9 +75,9 @@ class LinkedInEasyApplier:
         try:
             see_more_button = self.driver.find_element(By.XPATH, '//button[@aria-label="Click to see more description"]')
             see_more_button.click()
-            time.sleep(2)
+            time.sleep(.2)
             description = self.driver.find_element(By.CLASS_NAME, 'jobs-description-content__text').text
-            self._scroll_page()
+            # self._scroll_page()
             return description
         except NoSuchElementException:
             tb_str = traceback.format_exc()
@@ -101,13 +102,15 @@ class LinkedInEasyApplier:
         button_text = next_button.text.lower()
         if 'submit application' in button_text:
             self._unfollow_company()
-            time.sleep(random.uniform(1.5, 2.5))
+            time.sleep(random.uniform(.5, 1.))
             next_button.click()
             time.sleep(random.uniform(1.5, 2.5))
             return True
-        time.sleep(random.uniform(1.5, 2.5))
+        time.sleep(random.uniform(.5, 1.5))
         next_button.click()
-        time.sleep(random.uniform(3.0, 5.0))
+        time.sleep(random.uniform(1.5, 2.))
+
+        # time.sleep(random.uniform(3.0, 5.0))
         self._check_for_errors()
 
 
@@ -141,8 +144,6 @@ class LinkedInEasyApplier:
                 self._process_form_element(element)
         except Exception as e:
             pass
-        
-
 
     def _process_form_element(self, element: WebElement) -> None:
         try:
@@ -184,20 +185,20 @@ class LinkedInEasyApplier:
             os.makedirs(folder_path)
         for attempt in range(max_retries):
             try:
-                html_string = self.gpt_answerer.get_resume_html()
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as temp_html_file:
-                    temp_html_file.write(html_string)
-                    file_name_HTML = temp_html_file.name
+                # html_string = self.gpt_answerer.get_resume_html()
+                # with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as temp_html_file:
+                #     temp_html_file.write(html_string)
+                #     file_name_HTML = temp_html_file.name
 
-                file_name_pdf = f"resume_{uuid.uuid4().hex}.pdf"
-                file_path_pdf = os.path.join(folder_path, file_name_pdf)
+                # file_name_pdf = f"resume_{uuid.uuid4().hex}.pdf"
+                # file_path_pdf = os.path.join(folder_path, file_name_pdf)
                 
-                with open(file_path_pdf, "wb") as f:
-                    f.write(base64.b64decode(utils.HTML_to_PDF(file_name_HTML)))
+                # with open(file_path_pdf, "wb") as f:
+                #     f.write(base64.b64decode(utils.HTML_to_PDF(file_name_HTML)))
                     
-                element.send_keys(os.path.abspath(file_path_pdf))
-                time.sleep(2)  # Give some time for the upload process
-                os.remove(file_name_HTML)
+                # element.send_keys(os.path.abspath(file_path_pdf))
+                # time.sleep(2)  # Give some time for the upload process
+                # os.remove(file_name_HTML)
                 return True
             except Exception:
                 if attempt < max_retries - 1:
@@ -254,6 +255,12 @@ class LinkedInEasyApplier:
             if not radios:
                 return
 
+            # Check if any radio button is already selected
+            for radio in radios:
+                if radio.get_attribute('aria-checked') == 'true':
+                    print("Answer already selected. Skipping...")
+                    return  # Early exit if an answer is already selected
+
             question_text = element.text.lower()
             options = [radio.text.lower() for radio in radios]
 
@@ -262,14 +269,23 @@ class LinkedInEasyApplier:
                 answer = self.gpt_answerer.answer_question_from_options(question_text, options)
 
             self._select_radio(radios, answer)
-        except Exception:
-            pass
+        except NoSuchElementException:
+            print("Radio button element not found.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def _handle_textbox_question(self, element: WebElement) -> None:
         try:
             question = element.find_element(By.CLASS_NAME, 'jobs-easy-apply-form-element')
             question_text = question.find_element(By.TAG_NAME, 'label').text.lower()
             text_field = self._find_text_field(question)
+            if not text_field:
+                print("Textbox element not found(early). Skipping...")
+                return
+            # Check if the text field is already filled
+            if text_field.get_attribute('value').strip():
+                print("Textbox already filled. Skipping...")
+                return  # Early exit if the textbox is already filled
 
             is_numeric = self._is_numeric_field(text_field)
             answer = self._get_answer_from_set('numeric' if is_numeric else 'text', question_text)
@@ -279,19 +295,31 @@ class LinkedInEasyApplier:
 
             self._enter_text(text_field, answer)
             self._handle_form_errors(element, question_text, answer, text_field)
-        except Exception:
-            pass
+        except NoSuchElementException:
+            print("Textbox element not found.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
 
     def _handle_date_question(self, element: WebElement) -> None:
         try:
             date_picker = element.find_element(By.CLASS_NAME, 'artdeco-datepicker__input')
+            if not date_picker:
+                print("Date picker element not found(early).")
+                return
+            
+            # Check if the date picker is already filled
+            if date_picker.get_attribute('value').strip():
+                print("Date already selected. Skipping...")
+                return  # Early exit if the date is already filled
+
             date_picker.clear()
             date_picker.send_keys(date.today().strftime("%m/%d/%y"))
-            time.sleep(3)
             date_picker.send_keys(Keys.RETURN)
-            time.sleep(2)
-        except Exception:
-            pass
+        except NoSuchElementException:
+            print("Date picker element not found.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def _handle_dropdown_question(self, element: WebElement) -> None:
         try:
@@ -299,15 +327,30 @@ class LinkedInEasyApplier:
             question_text = question.find_element(By.TAG_NAME, 'label').text.lower()
             dropdown = question.find_element(By.TAG_NAME, 'select')
             select = Select(dropdown)
-            options = [option.text for option in select.options]
+            # sleep 1 sceond
+            time.sleep(.4)
 
+            if not dropdown:
+                print("Dropdown element not found(early). Skipping...")
+                return
+
+            # Check if an option is already selected
+            selected_option = select.first_selected_option.text.strip()
+            if selected_option and selected_option != 'Select an option':
+                print(f"Dropdown already selected ({selected_option}). Skipping...")
+                return  # Early exit if a dropdown option is already selected
+
+            options = [option.text for option in select.options]
             answer = self._get_answer_from_set('dropdown', question_text, options)
+
             if not answer:
                 answer = self.gpt_answerer.answer_question_from_options(question_text, options)
 
             self._select_dropdown(dropdown, answer)
-        except Exception:
-            pass
+        except NoSuchElementException:
+            print("Dropdown element not found.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def _get_answer_from_set(self, question_type: str, question_text: str, options: Optional[List[str]] = None) -> Optional[str]:
         for entry in self.set_old_answers:
@@ -333,6 +376,19 @@ class LinkedInEasyApplier:
     def _enter_text(self, element: WebElement, text: str) -> None:
         element.clear()
         element.send_keys(text)
+        time.sleep(0.5)  # Allow the dropdown to appear, if any
+
+        # Check for any dropdowns or autocomplete suggestions
+        try:
+            # Locate the first dropdown suggestion and click it
+            dropdown = WebDriverWait(self.driver, 2).until(
+                EC.visibility_of_element_located((By.CLASS_NAME, 'search-typeahead-v2__hit'))
+            )
+            dropdown.click()
+            time.sleep(0.5)  # Wait to ensure the selection is made
+        except (NoSuchElementException, TimeoutException):
+            pass  # If no dropdown, continue as normal
+
 
     def _select_dropdown(self, element: WebElement, text: str) -> None:
         select = Select(element)

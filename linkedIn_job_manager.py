@@ -72,7 +72,7 @@ class LinkedInJobManager:
         searches = list(product(self.positions, self.locations))
         random.shuffle(searches)
         page_sleep = 0
-        minimum_time = 60 * 15
+        minimum_time = 3 * 3
         minimum_page_time = time.time() + minimum_time
 
         for position, location in searches:
@@ -86,33 +86,33 @@ class LinkedInJobManager:
                     job_page_number += 1
                     utils.printyellow(f"Going to job page {job_page_number}")
                     self.next_job_page(position, location_url, job_page_number)
-                    time.sleep(random.uniform(1.5, 3.5))
+                    time.sleep(random.uniform(0.2, 1))
                     utils.printyellow("Starting the application process for this page...")
                     self.apply_jobs()
                     utils.printyellow("Applying to jobs on this page has been completed!")
 
                     time_left = minimum_page_time - time.time()
                     if time_left > 0:
-                        utils.printyellow(f"Sleeping for {time_left} seconds.")
-                        time.sleep(time_left)
+                        # utils.printyellow(f"Sleeping for {time_left} seconds.")
+                        # time.sleep(time_left)
                         minimum_page_time = time.time() + minimum_time
                     if page_sleep % 5 == 0:
-                        sleep_time = random.randint(5, 34)
-                        utils.printyellow(f"Sleeping for {sleep_time / 60} minutes.")
-                        time.sleep(sleep_time)
+                        # sleep_time = random.randint(5, 34)
+                        # utils.printyellow(f"Sleeping for {sleep_time / 60} minutes.")
+                        # time.sleep(sleep_time)
                         page_sleep += 1
             except Exception:
                 traceback.format_exc()
                 pass
             time_left = minimum_page_time - time.time()
             if time_left > 0:
-                utils.printyellow(f"Sleeping for {time_left} seconds.")
-                time.sleep(time_left)
+                # utils.printyellow(f"Sleeping for {time_left} seconds.")
+                # time.sleep(time_left)
                 minimum_page_time = time.time() + minimum_time
             if page_sleep % 5 == 0:
-                sleep_time = random.randint(50, 90)
-                utils.printyellow(f"Sleeping for {sleep_time / 60} minutes.")
-                time.sleep(sleep_time)
+                # sleep_time = random.randint(50, 90)
+                # utils.printyellow(f"Sleeping for {sleep_time / 60} minutes.")
+                # time.sleep(sleep_time)
                 page_sleep += 1
 
     def apply_jobs(self):
